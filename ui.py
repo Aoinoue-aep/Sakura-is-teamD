@@ -1,6 +1,7 @@
 import streamlit as st
 from google.oauth2.service_account import Credentials
 import gspread
+import pandas as pd
 
 st.title('プロトタイプ')
 
@@ -31,4 +32,8 @@ if st.button("送信"):
     else:
         sheet.append_row([name, "".join(text)])
         st.success("送信完了！")
+
+        st.subheader("あなたが送信した内容")
+        st.write(f"- 名前: {name}")
+        st.write(f"- 内容: {text}")
 
