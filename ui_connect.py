@@ -42,10 +42,7 @@ main_prompt = str(getData())
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-<<<<<<< HEAD
 @st.fragment
-=======
->>>>>>> 7cd8fb68c8875b53dc4e9ebf92c24d8ef4e64b9a
 def go_to(page):
     st.session_state.page = page
 
