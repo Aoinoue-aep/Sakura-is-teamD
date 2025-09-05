@@ -49,8 +49,8 @@ def go_to(page):
 if st.session_state.page == "home":
     st.title("シフト管理アプリ")
     st.write("利用するモードを選んでください")
-    st.button("従業員", on_click=go_to("employee"))
-    st.button("管理者用", on_click=go_to("admin"))
+    st.button("従業員", on_click=lambda: go_to("employee"))
+    st.button("管理者用", on_click=lambda: go_to("admin"))
     
 elif st.session_state.page == "employee":
     st.title('プロトタイプ')
@@ -87,7 +87,7 @@ elif st.session_state.page == "employee":
             st.write(f"- 名前: {name}")
             st.write(f"- 内容: {text}")
             
-            st.button("ホームに戻る", on_click=go_to("home"))
+            st.button("ホームに戻る", on_click=lambda: go_to("home"))
 
 elif st.session_state.page == "admin":
     st.title('管理者用ページ')
@@ -101,6 +101,7 @@ elif st.session_state.page == "admin":
     if st.button('シフト一括作成'):
         st.write('送信されました')
         csv_text = gemini(main_prompt, sys_ins)
+        print(csv_text)
 
         df = pd.read_csv(StringIO(csv_text))
         
@@ -120,5 +121,5 @@ elif st.session_state.page == "admin":
         st.subheader("シフト表")
         st.dataframe(pivot_df.fillna(""))  
     
-    st.button("ホームに戻る", on_click=go_to("home"))
+    st.button("ホームに戻る", on_click=lambda: go_to("home"))
 
