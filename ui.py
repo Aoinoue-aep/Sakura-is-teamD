@@ -1,5 +1,4 @@
 import streamlit as st
-from google.oauth2.service_account import Credentials
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import pandas as pd
@@ -39,7 +38,7 @@ if "sheet_data" not in st.session_state:
     st.session_state.sheet_data = getData()
 
 # スプシから取得したみんなの希望文
-main_prompt = str(getData())
+main_prompt = str(st.session_state.sheet_data)
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -63,7 +62,7 @@ elif st.session_state.page == "employee":
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
     # JSON キーを使って認証情報を作成
-    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    creds = ServiceAccountCredentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
     # gspread に認証情報を渡す
     gc = gspread.authorize(creds)
@@ -94,7 +93,7 @@ elif st.session_state.page == "employee":
 elif st.session_state.page == "admin_1":
     st.title('管理者用ページ')
 
-    df = pd.DataFrame(getData(), columns=["name", "value"])
+    df = pd.DataFrame(main_prompt, columns=["name", "value"])
 
     # DataFrameを表示
     st.write(df)
