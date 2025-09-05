@@ -1,9 +1,11 @@
 import streamlit as st
+from google.oauth2.service_account import Credentials
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import pandas as pd
 from google import genai
 from google.genai import types
+from io import StringIO
 
 def gemini(prompt, sys):
     response = client.models.generate_content(
@@ -34,11 +36,8 @@ client = genai.Client(api_key="AIzaSyAHp94iPLAJ1Cw27Dw_fWQKR3niYfkFAsI")
 with open("systemInst.txt", "r", encoding="utf-8") as f:
     sys_ins = f.read()
 
-if "sheet_data" not in st.session_state:
-    st.session_state.sheet_data = getData()
-
 # スプシから取得したみんなの希望文
-main_prompt = str(st.session_state.sheet_data)
+main_prompt = str(getData())
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -56,13 +55,13 @@ if st.session_state.page == "home":
         go_to("admin")
     
 elif st.session_state.page == "employee":
-    st.title('従業員用ページ')
+    st.title('プロトタイプ')
 
     SERVICE_ACCOUNT_FILE = "sakurahakkathon-2cb4c8b89c18.json"  # Jsonキー
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
     # JSON キーを使って認証情報を作成
-    creds = ServiceAccountCredentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
     # gspread に認証情報を渡す
     gc = gspread.authorize(creds)
@@ -72,6 +71,9 @@ elif st.session_state.page == "employee":
     SHEET_NAME = "シート1"
 
     sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+
+
+    st.header('従業員用ページ')
 
     name = st.text_input("名前")
     text=input = st.text_input('希望日を入力してください')
@@ -90,10 +92,10 @@ elif st.session_state.page == "employee":
             if st.button("ホームに戻る"):
                 go_to("home")
 
-elif st.session_state.page == "admin_1":
+elif st.session_state.page == "admin":
     st.title('管理者用ページ')
 
-    df = pd.DataFrame(main_prompt, columns=["name", "value"])
+    df = pd.DataFrame(getData(), columns=["name", "value"])
 
     # DataFrameを表示
     st.write(df)
@@ -101,9 +103,25 @@ elif st.session_state.page == "admin_1":
     #管理者用送信ボタンの処理
     if st.button('シフト一括作成'):
         st.write('送信されました')
-        gemini(main_prompt, sys_ins)
-        go_to("admin_2")
+        csv_text = gemini(main_prompt, sys_ins)
+
+        df = pd.read_csv(StringIO(csv_text))
         
-elif st.session_state.page == "admin_2":
-    st.title('シフト作成完了！！')
+        df["日付"] = df["日"].astype(str) + "(" + df["曜日"] + ")"
+
+        df_melt = df.melt(id_vars=["日","日付"],  value_vars=["担当者1","担当者2","担当者3","担当者4","担当者5"],value_name="名前").drop(columns="variable")
+        df_melt = df_melt.dropna(subset=["名前"])
+        df_melt["シフト"] = "○"
+
+        pivot_df = df_melt.pivot_table(
+            index="名前", columns="日", values="シフト", aggfunc="first")
+
+        pivot_df.columns = [
+            df.set_index("日").loc[day, "日付"] for day in pivot_df.columns
+        ]
+
+        st.subheader("シフト表")
+        st.dataframe(pivot_df.fillna(""))  
     
+    if st.button("ホームに戻る"):
+                go_to("home")
