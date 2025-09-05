@@ -52,16 +52,8 @@ def go_to(page):
 if st.session_state.page == "home":
     st.title("シフト管理アプリ")
     st.write("利用するモードを選んでください")
-    
-<<<<<<< HEAD
     st.button("従業員", on_click=go_to("employee"))
     st.button("管理者用", on_click=go_to("admin"))
-=======
-    if st.button("従業員"):
-        go_to("employee")
-    if st.button("管理者用"):
-        go_to("admin")
->>>>>>> 7cd8fb68c8875b53dc4e9ebf92c24d8ef4e64b9a
     
 elif st.session_state.page == "employee":
     st.title('プロトタイプ')
@@ -98,12 +90,7 @@ elif st.session_state.page == "employee":
             st.write(f"- 名前: {name}")
             st.write(f"- 内容: {text}")
             
-<<<<<<< HEAD
             st.button("ホームに戻る", on_click=go_to("home"))
-=======
-            if st.button("ホームに戻る"):
-                go_to("home")
->>>>>>> 7cd8fb68c8875b53dc4e9ebf92c24d8ef4e64b9a
 
 elif st.session_state.page == "admin":
     st.title('管理者用ページ')
@@ -136,9 +123,5 @@ elif st.session_state.page == "admin":
         st.subheader("シフト表")
         st.dataframe(pivot_df.fillna(""))  
     
-<<<<<<< HEAD
     st.button("ホームに戻る", on_click=go_to("home"))
-=======
-    if st.button("ホームに戻る"):
-                go_to("home")
->>>>>>> 7cd8fb68c8875b53dc4e9ebf92c24d8ef4e64b9a
+
