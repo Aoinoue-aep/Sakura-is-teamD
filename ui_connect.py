@@ -6,6 +6,23 @@ import pandas as pd
 from google import genai
 from google.genai import types
 from io import StringIO
+from time import sleep
+
+#スプレッドシートに入力する情報
+SPREADSHEET_ID = "1mRJj0IyX9EZ8NvV75-BAC_imRyRkF1k7skJ5sRBRz7M"
+SHEET_NAME = "シート1"
+
+SERVICE_ACCOUNT_FILE = "sakurahakkathon-2cb4c8b89c18.json"  # Jsonキー
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+# JSON キーを使って認証情報を作成
+creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+# gspread に認証情報を渡す
+gc = gspread.authorize(creds)
+
+sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+
 
 def gemini(prompt, sys):
     response = client.models.generate_content(
@@ -16,6 +33,12 @@ def gemini(prompt, sys):
     )
     return response.text
 
+def ui_clear_and_go(ph, page):
+    with st.spinner("読み込み中…"):
+        sleep(0.5)
+    ph.empty()
+    st.session_state.page = page
+    
 def getData():
     # 認証情報の設定
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -40,86 +63,73 @@ with open("systemInst.txt", "r", encoding="utf-8") as f:
 main_prompt = str(getData())
 
 if "page" not in st.session_state:
-    st.session_state.page = "home"
-
-@st.fragment
-def go_to(page):
-    st.session_state.page = page
+    st.session_state.page = "home"    
 
 if st.session_state.page == "home":
-    st.title("シフト管理アプリ")
-    st.write("利用するモードを選んでください")
-    st.button("従業員", on_click=lambda: go_to("employee"))
-    st.button("管理者用", on_click=lambda: go_to("admin"))
+    with (ph := st.empty()).container():
+        st.title("シフト管理アプリ")
+        st.write("利用するモードを選んでください")
+        st.button("従業員", on_click=lambda: ui_clear_and_go(ph, "employee"))
+        st.button("管理者用", on_click=lambda: ui_clear_and_go(ph, "admin"))
     
 elif st.session_state.page == "employee":
-    st.title('プロトタイプ')
+    with (ph := st.empty()).container():
+        st.title('プロトタイプ')
 
-    SERVICE_ACCOUNT_FILE = "sakurahakkathon-2cb4c8b89c18.json"  # Jsonキー
-    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+        st.header('従業員用ページ')
 
-    # JSON キーを使って認証情報を作成
-    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        name = st.text_input("名前")
+        text=input = st.text_input('希望日を入力してください')
 
-    # gspread に認証情報を渡す
-    gc = gspread.authorize(creds)
+        if st.button("送信"):
+            if not name or not text:
+                st.warning("名前と希望日を入力してください")
+            else:
+                sheet.append_row([name, "".join(text)])
+                st.success("送信完了！")
 
-    #スプレッドシートに入力する情報
-    SPREADSHEET_ID = "1mRJj0IyX9EZ8NvV75-BAC_imRyRkF1k7skJ5sRBRz7M"
-    SHEET_NAME = "シート1"
-
-    sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
-
-
-    st.header('従業員用ページ')
-
-    name = st.text_input("名前")
-    text=input = st.text_input('希望日を入力してください')
-
-    if st.button("送信"):
-        if not name or not text:
-            st.warning("名前と希望日を入力してください")
-        else:
-            sheet.append_row([name, "".join(text)])
-            st.success("送信完了！")
-
-            st.subheader("あなたが送信した内容")
-            st.write(f"- 名前: {name}")
-            st.write(f"- 内容: {text}")
-            
-            st.button("ホームに戻る", on_click=lambda: go_to("home"))
+                st.subheader("あなたが送信した内容")
+                st.write(f"- 名前: {name}")
+                st.write(f"- 内容: {text}")
+                
+        st.button("ホームに戻る", on_click=lambda: ui_clear_and_go(ph, "home"))
 
 elif st.session_state.page == "admin":
-    st.title('管理者用ページ')
+    with (ph := st.empty()).container():
+        st.title('管理者用ページ')
 
-    df = pd.DataFrame(getData(), columns=["name", "value"])
+        df = pd.DataFrame(getData(), columns=["name", "value"])
 
-    # DataFrameを表示
-    st.write(df)
+        # DataFrameを表示
+        st.write(df)
 
-    #管理者用送信ボタンの処理
-    if st.button('シフト一括作成'):
-        st.write('送信されました')
-        csv_text = gemini(main_prompt, sys_ins)
-        print(csv_text)
+        #管理者用送信ボタンの処理
+        if st.button('シフト一括作成'):
+            st.write('送信されました')
+            csv_text = gemini(main_prompt, sys_ins)
+            print(csv_text)
 
-        df = pd.read_csv(StringIO(csv_text))
+            df = pd.read_csv(StringIO(csv_text))
+            
+            df["日付"] = df["日"].astype(str) + "(" + df["曜日"] + ")"
+
+            df_melt = df.melt(id_vars=["日","日付"],  value_vars=["担当者1","担当者2","担当者3","担当者4","担当者5"],value_name="名前").drop(columns="variable")
+            df_melt = df_melt.dropna(subset=["名前"])
+            df_melt["シフト"] = "○"
+
+            pivot_df = df_melt.pivot_table(
+                index="名前", columns="日", values="シフト", aggfunc="first")
+
+            pivot_df.columns = [
+                df.set_index("日").loc[day, "日付"] for day in pivot_df.columns
+            ]
+
+            st.subheader("シフト表")
+            st.dataframe(pivot_df.fillna(""))
+            
+            data = [pivot_df.columns.tolist()] + pivot_df.reset_index().values.tolist()
+            
+            sheet.update("D1", data)
         
-        df["日付"] = df["日"].astype(str) + "(" + df["曜日"] + ")"
-
-        df_melt = df.melt(id_vars=["日","日付"],  value_vars=["担当者1","担当者2","担当者3","担当者4","担当者5"],value_name="名前").drop(columns="variable")
-        df_melt = df_melt.dropna(subset=["名前"])
-        df_melt["シフト"] = "○"
-
-        pivot_df = df_melt.pivot_table(
-            index="名前", columns="日", values="シフト", aggfunc="first")
-
-        pivot_df.columns = [
-            df.set_index("日").loc[day, "日付"] for day in pivot_df.columns
-        ]
-
-        st.subheader("シフト表")
-        st.dataframe(pivot_df.fillna(""))  
-    
-    st.button("ホームに戻る", on_click=lambda: go_to("home"))
+        st.button("ホームに戻る", on_click=lambda: ui_clear_and_go(ph, "home"))
 
